@@ -1,0 +1,103 @@
+# Express Routing & Query Parameters Demo
+
+A small Express.js server showing two things clearly:
+
+1. **Organized routing** — routes are split into files under `routes/` and mounted onto path prefixes in `server.js`, instead of everything living in one giant file.
+2. **Query parameter handling** — filtering, searching, sorting, and pagination, all driven by `req.query`.
+
+## Project structure
+
+```
+express-app/
+├── server.js           # App entry point: middleware + mounts each router
+├── package.json
+├── routes/
+│   ├── index.js         # "/"          — landing page + health check
+│   ├── users.js          # "/api/users"    — filtering, search, pagination
+│   └── products.js        # "/api/products" — range filters, sorting
+└── README.md
+```
+
+Each file in `routes/` exports an `express.Router()`. `server.js` imports each router and mounts it at a prefix with `app.use(prefix, router)`. This is the standard Express pattern for keeping routes organized by resource/feature as an app grows — you add a new file to `routes/` and one `app.use()` line, rather than editing a single monolithic file.
+
+## Setup
+
+```bash
+npm install
+npm start
+```
+
+The server runs at `http://localhost:3000` by default (override with the `PORT` environment variable).
+
+For auto-restart on file changes during development:
+
+```bash
+npm run dev
+```
+
+## Endpoints
+
+### `GET /`
+Landing route listing available endpoints.
+
+### `GET /health`
+Basic health check, returns server uptime.
+
+### `GET /api/users`
+Returns a list of users. Query parameters:
+
+| Param    | Type    | Example              | Description                              |
+|----------|---------|-----------------------|-------------------------------------------|
+| `role`   | string  | `?role=admin`          | Filter by exact role match                |
+| `active` | boolean | `?active=true`         | Filter by active status                   |
+| `search` | string  | `?search=ali`          | Case-insensitive substring match on name  |
+| `page`   | number  | `?page=2`               | Page number (default `1`)                 |
+| `limit`  | number  | `?limit=5`               | Results per page (default `10`)           |
+
+Example:
+```
+GET /api/users?role=editor&active=true&page=1&limit=5
+```
+
+### `GET /api/users/:id`
+Returns a single user by route parameter (shown for contrast with query params).
+
+### `GET /api/products`
+Returns a list of products. Query parameters:
+
+| Param      | Type   | Example                | Description                              |
+|------------|--------|--------------------------|-------------------------------------------|
+| `category` | string | `?category=electronics`   | Filter by category                        |
+| `minPrice` | number | `?minPrice=20`             | Minimum price, inclusive                  |
+| `maxPrice` | number | `?maxPrice=70`              | Maximum price, inclusive                  |
+| `sort`     | string | `?sort=price`                | Field to sort by: `name` or `price`       |
+| `order`    | string | `?order=desc`                 | `asc` (default) or `desc`                 |
+
+Example:
+```
+GET /api/products?category=electronics&minPrice=20&maxPrice=70&sort=price&order=desc
+```
+
+### `GET /api/products/:id`
+Returns a single product by route parameter.
+
+## How query params are handled
+
+All query parameters arrive on `req.query` as strings (or arrays of strings for repeated keys), so the routes:
+
+- Cast numbers explicitly (`Number(...)`, `parseInt(...)`) before comparing.
+- Compare booleans against the string `'true'`, since `req.query.active` is always a string.
+- Treat every filter as optional — the code only applies a filter when the corresponding param is present, so `/api/users` with no query string just returns everything.
+- Clamp `page` and `limit` to sane minimums to avoid negative or zero-length pages.
+
+## Extending this project
+
+To add a new resource (e.g. `orders`):
+
+1. Create `routes/orders.js` exporting an `express.Router()`.
+2. Mount it in `server.js`: `app.use('/api/orders', require('./routes/orders'));`
+3. Add any query-param logic inside that router, following the same pattern as `users.js` or `products.js`.
+
+## License
+
+MIT
